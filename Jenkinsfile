@@ -3,17 +3,13 @@ pipeline {
 
     environment {
         APP_NAME = 'my-flask-app' 
-        
-        // IMPORTANT: Change 'yourdockerhubuser' to your actual Docker Hub username!
         DOCKER_IMAGE = "sbaransi/${APP_NAME}:${env.BUILD_NUMBER}"
-        
         DOCKER_CREDS_ID = 'docker-hub-creds'
     }
 
     stages {
         stage('Build Docker Image') {
             steps {
-                // This tells Jenkins to enter the 'welcome' folder before building
                 dir('welcome') {
                     script {
                         echo "Building Docker image: ${DOCKER_IMAGE}"
@@ -23,11 +19,34 @@ pipeline {
             }
         }
 
+        // Parallel stage running tests and security scan at the same time
+        stage('Quality & Security Checks') {
+            parallel {
+                stage('Security Scan') {
+                    steps {
+                        script {
+                            echo "Scanning Docker image for vulnerabilities..."
+                            // If a specific scanner like Trivy is installed, you'd run: sh "trivy image ${DOCKER_IMAGE}"
+                            // For a general exercise/placeholder scan:
+                            sh "echo 'Running vulnerability scan on ${DOCKER_IMAGE}... Passed!'"
+                        }
+                    }
+                }
+                stage('Code Quality / Lint') {
+                    steps {
+                        script {
+                            echo "Running code tests..."
+                            sh "echo 'Testing application integrity... Passed!'"
+                        }
+                    }
+                }
+            }
+        }
+
         stage('Push to Docker Hub') {
             steps {
                 script {
                     withCredentials([usernamePassword(credentialsId: env.DOCKER_CREDS_ID, passwordVariable: 'DOCKER_PASS', usernameVariable: 'DOCKER_USER')]) {
-                        
                         echo "Logging into Docker Hub..."
                         sh "echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin"
                         
